@@ -1,0 +1,9 @@
+{
+    "approval_required": [
+        "system_poweroff", "system_reboot", "network_lockdown",
+        "package_remove", "file_delete_recursive", "kernel_module_unload"
+    ],
+    "timeout_seconds": 30,
+    "max_retries": 3,
+    "sandbox_required": ["execute_shell", "run_code"]
+}

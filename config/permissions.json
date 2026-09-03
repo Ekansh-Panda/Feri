@@ -1,0 +1,10 @@
+{
+    "levels": {
+        "PUBLIC": ["web_search", "weather", "open_url"],
+        "USER": ["file_read", "app_launch", "volume", "brightness"],
+        "ADMIN": ["package_install", "service_control", "firewall"],
+        "ROOT": ["kernel_module", "format_disk", "network_lockdown"]
+    },
+    "default_level": "USER",
+    "require_approval_for": ["ROOT", "ADMIN"]
+}

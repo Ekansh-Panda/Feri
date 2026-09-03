@@ -1,0 +1,21 @@
+[Unit]
+Description=JARVIS Sentinel Watchdog
+After=jarvis-core.service
+BindsTo=jarvis-core.service
+
+[Service]
+Type=simple
+User=%i
+Environment=DISPLAY=:0
+WorkingDirectory=%h/Mark-LII
+ExecStart=/usr/bin/python3 -c "
+import time, subprocess, psutil
+while True:
+    if not any('main.py' in ' '.join(p.cmdline()) for p in psutil.process_iter(['cmdline']) if p.info['cmdline']):
+        subprocess.run(['systemctl', '--user', 'restart', 'jarvis-core'])
+    time.sleep(30)
+"
+Restart=always
+
+[Install]
+WantedBy=graphical.target

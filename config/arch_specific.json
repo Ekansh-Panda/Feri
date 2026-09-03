@@ -1,0 +1,21 @@
+{
+    "paths": {
+        "home": "/home/%USER%",
+        "i3_config": "~/.config/i3/config",
+        "systemd_user": "~/.config/systemd/user/",
+        "pacman_cache": "/var/cache/pacman/pkg/",
+        "aur_helper": "yay",
+        "display": ":0"
+    },
+    "devices": {
+        "battery": "BAT0",
+        "wifi": "wlan0",
+        "gpu": "nvidia",
+        "cpu_sensor": "coretemp",
+        "thermal_zone": "thermal_zone0"
+    },
+    "interfaces": {
+        "i3_socket": "/tmp/i3-%U-%i",
+        "xdg_runtime": "/run/user/%U"
+    }
+}

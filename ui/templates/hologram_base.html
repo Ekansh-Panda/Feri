@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>JARVIS Holographic Engine</title>
+<style>
+  html, body { margin:0; padding:0; height:100%; background:#000; color:#7fdbff;
+               font-family: 'Courier New', monospace; overflow:hidden; }
+  #stage { position:absolute; inset:0; }
+  #overlay { position:absolute; top:8px; left:12px; font-size:12px; opacity:0.7; pointer-events:none; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+<div id="stage"></div>
+<div id="overlay">JARVIS HOLOGRAM :: awaiting payload</div>
+<script>
+window.JARVIS_RENDER = function(data, type) {
+  const overlay = document.getElementById('overlay');
+  overlay.textContent = "JARVIS HOLOGRAM :: " + (type || data.type || 'render');
+  const stage = document.getElementById('stage');
+  stage.innerHTML = '';
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x05060a);
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
+  camera.position.set(0, 0, 30);
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  stage.appendChild(renderer.domElement);
+
+  let controls = null;
+  if (THREE.OrbitControls) {
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+  }
+
+  scene.add(new THREE.AmbientLight(0x7fdbff, 0.4));
+  const key = new THREE.PointLight(0xffffff, 1.2, 200);
+  key.position.set(20, 20, 20);
+  scene.add(key);
+
+  const colour = (i) => new THREE.Color().setHSL((i * 0.13) % 1, 0.7, 0.55);
+  const sphereGeo = new THREE.SphereGeometry(0.7, 24, 24);
+
+  function loop() {
+    requestAnimationFrame(loop);
+    if (controls) controls.update();
+    scene.rotation.y += 0.0015;
+    renderer.render(scene, camera);
+  }
+
+  const t = type || (data && data.type);
+
+  if (t === 'code_topology' && data) {
+    data.nodes.forEach((n, i) => {
+      const m = new THREE.Mesh(sphereGeo, new THREE.MeshStandardMaterial({ color: colour(i) }));
+      m.position.set((Math.random()-0.5)*20, (Math.random()-0.5)*20, (Math.random()-0.5)*20);
+      scene.add(m);
+    });
+  } else if (t === 'molecular' && data) {
+    data.atoms.forEach((a, i) => {
+      const m = new THREE.Mesh(sphereGeo, new THREE.MeshStandardMaterial({ color: colour(i) }));
+      m.position.set(a.x * 4, a.y * 4, a.z * 4);
+      scene.add(m);
+    });
+    if (data.bonds) {
+      data.bonds.forEach((b) => {
+        const a = data.atoms[b[0]], c = data.atoms[b[1]];
+        const geom = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(a.x*4, a.y*4, a.z*4),
+          new THREE.Vector3(c.x*4, c.y*4, c.z*4)]);
+        scene.add(new THREE.Line(geom, new THREE.LineBasicMaterial({ color: 0x7fdbff })));
+      });
+    }
+  } else if (t === 'math_surface' && data) {
+    const size = 40, seg = 40;
+    const geom = new THREE.PlaneGeometry(size, size, seg, seg);
+    const pos = geom.attributes.position;
+    const eq = data.equation || 'Math.sin(x*y)';
+    const f = new Function('x', 'y', 'return ' + eq);
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), y = pos.getY(i);
+      pos.setZ(i, f(x*0.2, y*0.2) * 2);
+    }
+    geom.computeVertexNormals();
+    const mesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({
+      color: 0x66ccff, wireframe: true, side: THREE.DoubleSide }));
+    mesh.rotation.x = -Math.PI / 2;
+    scene.add(mesh);
+  } else if (t === 'filesystem_tree' && data) {
+    let i = 0;
+    function add(node, depth, parent) {
+      const m = new THREE.Mesh(sphereGeo, new THREE.MeshStandardMaterial({ color: colour(i++) }));
+      m.position.set(depth*3, parent ? parent.position.y + 1 : 0, parent ? parent.position.z - 1 : 0);
+      scene.add(m);
+      if (parent) {
+        const g = new THREE.BufferGeometry().setFromPoints([parent.position, m.position]);
+        scene.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0x336699 })));
+      }
+      (node.children || []).forEach((c) => add(c, depth+1, m));
+    }
+    if (data.tree) add(data.tree, 0, null);
+  } else {
+    const m = new THREE.Mesh(sphereGeo, new THREE.MeshStandardMaterial({ color: 0x7fdbff }));
+    scene.add(m);
+  }
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  loop();
+};
+</script>
+</body>
+</html>

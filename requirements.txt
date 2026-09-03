@@ -1,0 +1,51 @@
+PyQt6
+PyQt6-WebEngine
+google-genai>=2.8.0
+google-generativeai
+pillow
+requests
+beautifulsoup4
+ddgs>=9.0.0
+playwright
+pyautogui
+pyperclip
+openai
+opencv-python
+numpy
+psutil
+send2trash
+youtube-transcript-api
+fastapi
+uvicorn[standard]
+cryptography
+python-multipart
+chromadb
+sentence-transformers
+scapy
+frida-tools
+docker
+apscheduler
+watchdog
+pynput
+evdev
+mediapipe
+yt-dlp
+pyserial
+python-xlib
+i3ipc
+aiohttp
+httpx
+pydantic
+qrcode[pil]
+genanki
+python-pptx
+GPUtil
+pynvml
+browser-use
+lxml
+pypandoc
+comtypes; sys_platform == "win32"
+pycaw; sys_platform == "win32"
+win10toast; sys_platform == "win32"
+pywinauto; sys_platform == "win32"
+pywin32; sys_platform == "win32"

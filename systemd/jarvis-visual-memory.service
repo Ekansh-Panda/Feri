@@ -1,0 +1,20 @@
+[Unit]
+Description=JARVIS Visual Memory Daemon
+After=graphical.target
+
+[Service]
+Type=simple
+User=%i
+Environment=DISPLAY=:0
+WorkingDirectory=%h/Mark-LII
+ExecStart=/usr/bin/python3 -c "
+from core.visual_memory import VisualMemory
+vm = VisualMemory(interval=30)
+vm.start()
+import time
+while True: time.sleep(60)
+"
+Restart=always
+
+[Install]
+WantedBy=graphical.target

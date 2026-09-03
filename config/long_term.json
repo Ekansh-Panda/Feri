@@ -1,0 +1,23 @@
+{
+    "user": {
+        "name": "Sir",
+        "preferred_workspaces": {
+            "code": 1,
+            "browser": 2,
+            "terminal": 3,
+            "jarvis": 10
+        },
+        "shortcuts": {},
+        "habits": {}
+    },
+    "system": {
+        "installed_plugins": [],
+        "enabled_protocols": [],
+        "trusted_devices": []
+    },
+    "knowledge": {
+        "projects": {},
+        "contacts": {},
+        "frequent_urls": []
+    }
+}

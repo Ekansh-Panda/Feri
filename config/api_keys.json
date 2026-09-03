@@ -1,0 +1,14 @@
+{
+    "gemini_api_key": "YOUR_GEMINI_KEY",
+    "home_assistant_url": "http://homeassistant.local:8123",
+    "home_assistant_token": "YOUR_HA_TOKEN",
+    "opensky_api": "",
+    "matrix_encryption_key": "auto-generated-on-first-run",
+    "matrix_git_remote": "",
+    "discord_webhook": "",
+    "telegram_bot_token": "",
+    "twilio_account_sid": "",
+    "twilio_auth_token": "",
+    "shodan_api": "",
+    "openweather_api": ""
+}

@@ -1,0 +1,24 @@
+[Unit]
+Description=JARVIS NEXUS Core Engine
+After=network.target graphical.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=%i
+Environment=DISPLAY=:0
+Environment=XDG_RUNTIME_DIR=/run/user/%U
+WorkingDirectory=%h/Mark-LII
+ExecStart=/usr/bin/python3 %h/Mark-LII/main.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+MemoryMax=4G
+CPUQuota=200%
+NoNewPrivileges=false
+ProtectSystem=false
+ProtectHome=false
+
+[Install]
+WantedBy=graphical.target
