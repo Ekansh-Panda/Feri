@@ -584,3 +584,31 @@ def call_llm_stream(
     except Exception as e:
         print(f"[LLM] Stream error: {type(e).__name__}: {e}")
         raise RuntimeError(f"LLM stream failed: {e}")
+
+
+class LLMClient:
+    """Wrapper class for LLM operations.
+
+    Provides a clean interface around the module-level functions in
+    ``core.llm_client`` so the rest of the codebase can depend on a
+    single client object instead of scattered function calls.
+    """
+
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key
+
+    def chat(self, messages: list, tools: list | None = None, timeout: int = 120):
+        """Synchronous chat completion."""
+        return call_llm(messages, tools, timeout)
+
+    def stream(self, messages: list, tools: list | None = None, timeout: int = 120):
+        """Streaming chat completion — yields dict chunks."""
+        yield from call_llm_stream(messages, tools, timeout)
+
+    def text(self, prompt: str, timeout: int = 120) -> str:
+        """Simple single-turn text completion."""
+        return call_llm_text(prompt, timeout)
+
+    def is_available(self) -> bool:
+        """Check whether the configured LLM backend is reachable."""
+        return check_model_available()

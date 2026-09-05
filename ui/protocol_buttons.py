@@ -8,7 +8,7 @@ from PyQt6.QtCore import QTimer, Qt, pyqtSignal, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QPen
 from PyQt6.QtWidgets import QGridLayout, QPushButton, QWidget
 
-from ..plugins.protocols import StarkProtocols
+from plugins.protocols import StarkProtocols
 
 
 _PROTOCOLS = [

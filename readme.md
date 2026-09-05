@@ -312,7 +312,7 @@ Mark-LII/
 │   └── install_services.sh          # Copies and enables all units
 │
 ├── i3/
-│   ├── jarvis_i3_config.snippet     # i3 keybindings for JARVIS
+│   ├── jarvis_i3_config.snippet     # i3 window rules for JARVIS
 │   └── jarvis_i3_autostart.sh       # Auto-launch on i3 start
 │
 ├── dashboard/                       # Remote phone dashboard
@@ -331,29 +331,61 @@ Mark-LII/
 
 ## 🚀 Quick Start
 
+### Step 1 — Clone
 ```bash
-# 1. Clone
 git clone https://github.com/ekanshpanda/Mark-LII.git ~/Mark-LII
 cd ~/Mark-LII
+```
 
-# 2. Install ALL Arch dependencies
+### Step 2 — Install ALL Arch dependencies
+```bash
 sudo bash install_stark_deps.sh
+```
+This installs pacman packages, AUR packages via yay, pip packages, Playwright browsers, kernel modules, and enables docker/NetworkManager/ufw.
 
-# 3. Enable systemd services
+### Step 3 — Enable systemd user services
+```bash
 bash systemd/install_services.sh
+```
+This installs three systemd user services:
+- `jarvis-core` — main JARVIS daemon
+- `jarvis-sentinel` — watchdog that auto-restarts JARVIS if it crashes
+- `jarvis-visual-memory` — screenshot OCR daemon
 
-# 4. Add i3 keybindings
+### Step 4 — Configure i3wm window rules
+```bash
 cat i3/jarvis_i3_config.snippet >> ~/.config/i3/config
-chmod +x i3/rofi_jarvis.sh i3/jarvis_i3_autostart.sh
+chmod +x ~/.config/i3/config
 i3-msg reload
+```
 
-# 5. Configure API keys
-# Edit config/api_keys.json with your Gemini key
+This adds only the window rules for JARVIS (floating, size, position). No keybindings.
 
-# 6. Launch
-python3 main.py
-# OR press Super+Shift+J in i3
-# Toggle HUD: Super+J
+### Step 5 — Configure API keys
+```bash
+nano config/api_keys.json
+```
+Replace `YOUR_GEMINI_KEY` with your actual Gemini API key.
+
+### Step 6 — Add `feri` to your PATH
+```bash
+mkdir -p ~/.local/bin
+ln -sf ~/Work/Feri/scripts/feri ~/.local/bin/feri
+```
+
+Make sure `~/.local/bin` is in your `$PATH`. Add this to `~/.bashrc` or `~/.zshrc` if needed:
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+### Step 7 — Launch JARVIS
+```bash
+feri
+```
+
+**To toggle the HUD after launch:**
+```bash
+feri --toggle
 ```
 
 ---
@@ -416,6 +448,19 @@ pydantic, cryptography, genanki, python-pptx
 
 ---
 
+## 🔧 i3 Config Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `i3-msg: Cannot open display` | Make sure `$DISPLAY` is set (`echo $DISPLAY` should show `:0` or similar) |
+| `bindsym: Unknown variable $mod` | Add `set $mod Mod4` (or `Mod1`) to your i3 config before the snippet |
+| `workspace 10 output primary` errors | Remove that line if you have custom workspace-to-output rules — JARVIS will still work |
+| JARVIS window doesn't center | Ensure `floating enable` is set before `resize`/`move` in `for_window` rules |
+| `python3: command not found` | Install python: `sudo pacman -S python` |
+| HUD doesn't appear | Run `feri` to start JARVIS, then `feri --toggle` to show/hide the HUD |
+
+---
+
 ## 📋 Requirements
 
 | Requirement | Details |
@@ -452,4 +497,4 @@ Licensed under **[Creative Commons BY-NC 4.0](https://creativecommons.org/licens
 
 Engineered by **[ekanshpanda](https://ekanshpanda.vercel.app)**.
 
-JARVIS NEXUS is the definitive Arch Linux + i3wm implementation of the Stark OS blueprint. Every single power mapped to a real Linux command, a real Python file, a real systemd service, a real i3 keybinding. No abstractions. No compromises. Pure Arch.
+JARVIS NEXUS is the definitive Arch Linux + i3wm implementation of the Stark OS blueprint. Every single power mapped to a real Linux command, a real Python file, a real systemd service. No abstractions. No compromises. Pure Arch.

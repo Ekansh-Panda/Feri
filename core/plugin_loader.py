@@ -100,9 +100,25 @@ def _call_run(run_fn, parameters, player, session_memory):
 def _validate(module, filename: str) -> PluginRecord:
     """Returns a PluginRecord; .valid=False + .error set on any problem. Never raises."""
     plugin_meta = getattr(module, "PLUGIN", None)
+
+    # Backwards-compat: support old plugins that expose PLUGIN_NAME / PLUGIN_DESCRIPTION
     if not isinstance(plugin_meta, dict):
-        return PluginRecord(name=Path(filename).stem, file=filename,
-                             error="Missing PLUGIN dict constant.")
+        plugin_name = getattr(module, "PLUGIN_NAME", None)
+        plugin_desc = getattr(module, "PLUGIN_DESCRIPTION", "")
+        if isinstance(plugin_name, str) and plugin_name.strip() and plugin_name.strip() != "template":
+            plugin_meta = {
+                "name": plugin_name.strip(),
+                "description": plugin_desc.strip() or f"Plugin: {plugin_name}",
+                "parameters": _DEFAULT_PARAMS,
+            }
+        else:
+            # Use filename stem as plugin name for legacy plugins
+            stem = Path(filename).stem
+            plugin_meta = {
+                "name": stem,
+                "description": getattr(module, "PLUGIN_DESCRIPTION", "").strip() or f"Plugin: {stem}",
+                "parameters": _DEFAULT_PARAMS,
+            }
 
     name = plugin_meta.get("name")
     if not isinstance(name, str) or not _NAME_RE.match(name):
@@ -122,8 +138,19 @@ def _validate(module, filename: str) -> PluginRecord:
 
     run_fn = getattr(module, "run", None)
     if not callable(run_fn):
-        return PluginRecord(name=name, file=filename,
-                             error="Missing callable run(parameters, ...) function.")
+        # Backwards-compat: wrap legacy execute() as run()
+        execute_fn = getattr(module, "execute", None)
+        if callable(execute_fn):
+            def _legacy_run(parameters, **kwargs):
+                tool_name = parameters.get("tool_name") or parameters.get("name") or name
+                result = execute_fn(tool_name, parameters)
+                if isinstance(result, dict):
+                    return str(result)
+                return result if result is not None else "Done."
+            run_fn = _legacy_run
+        else:
+            return PluginRecord(name=name, file=filename,
+                                 error="Missing callable run(parameters, ...) function.")
 
     return PluginRecord(name=name, description=description.strip(), parameters=parameters,
                          run=run_fn, file=filename, valid=True, error="")

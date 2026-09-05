@@ -40,8 +40,10 @@ from .user_telemetry import UserTelemetry
 class StarkHUD(QMainWindow):
     """Main HUD window for JARVIS NEXUS."""
 
-    def __init__(self) -> None:
+    def __init__(self, orchestrator=None, mission_engine=None) -> None:
         super().__init__()
+        self.orchestrator = orchestrator
+        self.mission_engine = mission_engine
         self.setWindowTitle("JARVIS NEXUS — Stark OS")
         self._visible = True
         self._setup_window()
@@ -53,8 +55,7 @@ class StarkHUD(QMainWindow):
     def _setup_window(self) -> None:
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
-            Qt.WindowType.WindowStaysOnTopHint |
-            Qt.WindowType.Tool
+            Qt.WindowType.WindowStaysOnTopHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         pal = QPalette()
@@ -146,9 +147,8 @@ class StarkHUD(QMainWindow):
         tabs.addTab(protocol_tab, "Protocols")
 
     def _setup_shortcuts(self) -> None:
-        from PyQt6.QtGui import QShortcut
-        from PyQt6.QtCore import Qt
-        toggle = QShortcut(Qt.Key.Key_Super | Qt.Key.Key_J, self)
+        from PyQt6.QtGui import QKeySequence, QShortcut
+        toggle = QShortcut(QKeySequence("Super+J"), self)
         toggle.activated.connect(self._toggle_visibility)
 
     def _toggle_visibility(self) -> None:

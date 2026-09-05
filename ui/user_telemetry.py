@@ -22,7 +22,6 @@ class UserTelemetry(QWidget):
         self._tmr = QTimer(self)
         self._tmr.timeout.connect(self._tick)
         self._tmr.start(5000)
-        self._tick()
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 12, 12, 12)
         lay.setSpacing(10)

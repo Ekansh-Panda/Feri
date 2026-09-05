@@ -39,7 +39,10 @@ def main():
     llm = LLMClient(api_keys.get("gemini_api_key", ""))
     mission_engine = MissionEngine()
     orchestrator = Orchestrator(api_keys, llm, mission_engine)
-    discover_plugins()
+    discover_plugins(
+        plugins_dir=BASE_DIR / "plugins",
+        core_tool_names=set(),
+    )
 
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)

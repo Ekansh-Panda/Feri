@@ -1,10 +1,12 @@
-# JARVIS NEXUS — i3wm Keybindings
-workspace 10 output primary
+# ============================================
+# JARVIS NEXUS — i3wm Integration
+# ============================================
+
+# JARVIS HUD assignment
 assign [title="J.A.R.V.I.S.*"] 10
-bindsym $mod+j [title="J.A.R.V.I.S.*"] scratchpad show
-bindsym $mod+Shift+j exec --no-startup-id python3 ~/Mark-LII/main.py
-bindsym $mod+v exec --no-startup-id rofi -dmenu -p "JARVIS"
-bindsym $mod+F1 exec --no-startup-id notify-send "JARVIS" "House Party Protocol"
-bindsym $mod+F2 exec --no-startup-id notify-send "JARVIS" "Clean Slate Protocol"
-bindsym $mod+F3 exec --no-startup-id notify-send -u critical "JARVIS" "LOCKDOWN"
-for_window [title="J.A.R.V.I.S.*"] border none, floating enable, resize set 1400 800, move position center
+
+# JARVIS window rules
+for_window [title="J.A.R.V.I.S.*"] floating enable
+for_window [title="J.A.R.V.I.S.*"] border pixel 0
+for_window [title="J.A.R.V.I.S.*"] resize set 1400 800
+for_window [title="J.A.R.V.I.S.*"] move position center
