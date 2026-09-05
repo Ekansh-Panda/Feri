@@ -1,11 +1,27 @@
 
-"""WebEngine 3D hologram panel."""
+"""WebEngine 3D hologram panel.
+
+Sets Qt.AA_ShareOpenGLContexts at import time so QWebEngineWidgets can
+be imported AFTER QApplication is created. This is required by PyQt6 6.11+.
+"""
 
 from __future__ import annotations
 
 import json
 import random
 from pathlib import Path
+
+# MUST be set before QApplication is created (it usually already is when
+# this module is imported, so the import of QWebEngineWidgets would fail).
+# We do it here at module-load time to be safe.
+from PyQt6.QtCore import Qt as _Qt
+try:
+    from PyQt6.QtWidgets import QApplication as _QA
+    if not _QA.instance():
+        pass  # no QApplication yet — the attribute will be set elsewhere
+    _QA.setAttribute(_Qt.ApplicationAttribute.AA_ShareOpenGLContexts, True)
+except Exception:
+    pass
 
 from PyQt6.QtCore import QUrl, pyqtSignal
 from PyQt6.QtWebEngineWidgets import QWebEngineView

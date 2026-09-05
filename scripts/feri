@@ -16,15 +16,33 @@ case "$CMD" in
         python3 "$PROJECT_DIR/setup.py" "$@"
         ;;
     start)
-        # Kill any existing instance
-        pkill -f "python3 main.py" 2>/dev/null
+        # Kill any existing instance — match both relative and absolute paths
+        pkill -9 -f "main.py" 2>/dev/null
         sleep 1
+        # Pass interface choice to main.py if provided.
+        # After the `shift` at the top of the script, $1 is the first arg
+        # of the subcommand (e.g. "nice" when called as `feri start nice`).
+        INTERFACE_ARG=""
+        if [ -n "${1:-}" ] && [ "${1:-}" = "jn" -o "${1:-}" = "og" -o "${1:-}" = "nice" ]; then
+            INTERFACE_ARG="${1}"
+        elif [ -f "$PROJECT_DIR/.feri_interface" ]; then
+            SAVED=$(cat "$PROJECT_DIR/.feri_interface" 2>/dev/null)
+            if [ "$SAVED" = "jn" ] || [ "$SAVED" = "og" ] || [ "$SAVED" = "nice" ]; then
+                INTERFACE_ARG="$SAVED"
+            fi
+        fi
+        # If still no interface, default to jn (nohup disconnects stdin so
+        # the interactive menu would just see EOF).
+        if [ -z "$INTERFACE_ARG" ]; then
+            INTERFACE_ARG="jn"
+        fi
         # Launch in background, redirect output to log
-        nohup python3 "$PROJECT_DIR/main.py" >> /tmp/jarvis.log 2>&1 &
+        nohup python3 "$PROJECT_DIR/main.py" "$INTERFACE_ARG" >> /tmp/jarvis.log 2>&1 &
         NEW_PID=$!
         sleep 3
         if kill -0 $NEW_PID 2>/dev/null; then
             echo "JARVIS online. PID: $NEW_PID"
+            echo "Interface: $INTERFACE_ARG"
             echo "Logs: /tmp/jarvis.log"
         else
             echo "Failed to start JARVIS. Last 40 log lines:"
@@ -33,17 +51,23 @@ case "$CMD" in
         fi
         ;;
     stop)
-        pkill -f "python3 main.py" 2>/dev/null
-        echo "JARVIS stopped."
+        pkill -9 -f "main.py" 2>/dev/null
+        sleep 1
+        if pgrep -f "main.py" > /dev/null; then
+            echo "JARVIS still running, force killing..."
+            pkill -9 -f "main.py"
+        else
+            echo "JARVIS stopped."
+        fi
         ;;
     restart)
         "$0" stop
-        sleep 1
-        "$0" start
+        sleep 2
+        "$0" start "$@"
         ;;
     status)
-        if pgrep -f "python3 main.py" > /dev/null; then
-            PID=$(pgrep -f "python3 main.py" | head -1)
+        if pgrep -f "main.py" > /dev/null 2>&1; then
+            PID=$(pgrep -f "main.py" | head -1)
             echo "JARVIS is running. PID: $PID"
             ps -p $PID -o pid,pcpu,pmem,etime,comm 2>/dev/null
         else
@@ -66,6 +90,18 @@ case "$CMD" in
         find "$PROJECT_DIR/memory/chroma_db" -type f -mtime +2 -delete 2>/dev/null
         echo "Cleaned."
         ;;
+    set-default)
+        # After the top-level shift, $1 is the first arg of `set-default`
+        INTERFACE="${1:-}"
+        if [ "$INTERFACE" = "jn" ] || [ "$INTERFACE" = "og" ] || [ "$INTERFACE" = "nice" ]; then
+            echo "$INTERFACE" > "$PROJECT_DIR/.feri_interface"
+            echo "Default interface set to: $INTERFACE"
+            echo "Next 'feri start' will launch $INTERFACE"
+        else
+            echo "Usage: feri set-default <jn|og|nice>"
+            exit 1
+        fi
+        ;;
     install)
         echo "Installing Arch dependencies..."
         sudo bash "$PROJECT_DIR/install_stark_deps.sh"
@@ -83,27 +119,34 @@ case "$CMD" in
         cat <<EOF
 feri — JARVIS NEXUS Master CLI
 
-Usage: feri <command>
+Usage: feri <command> [interface]
+
+Interfaces (when no choice is given you'll be prompted):
+  jn    New PyQt6 Stark HUD with Arc Reactor, holograms, telemetry
+  og    Original JarvisUI (full Mark LII — file drop, camera, dashboard)
+  nice  Tkinter — clean, lightweight, no WebEngine required
 
 Commands:
-  setup     Run first-run configuration wizard
-  start     Launch JARVIS in background
-  stop      Kill running JARVIS instance
-  restart   Stop and start again
-  status    Show process state and resource usage
-  toggle    Show/hide HUD window (scratchpad)
-  logs      Tail the live log file
-  clean     Clear screenshot cache and old vector data
-  install   Install Arch dependencies + symlink to ~/.local/bin
-  uninstall Remove symlink and disable systemd services
-  help      Show this message
+  setup         Run first-run configuration wizard
+  start [iface] Launch JARVIS in background (jn/og/nice or default)
+  stop          Kill running JARVIS instance
+  restart       Stop and start again
+  status        Show process state and resource usage
+  toggle        Show/hide HUD window (scratchpad)
+  logs          Tail the live log file
+  clean         Clear screenshot cache and old vector data
+  set-default <iface>  Remember interface for future 'feri start'
+  install       Install Arch dependencies + symlink to ~/.local/bin
+  uninstall     Remove symlink and disable systemd services
+  help          Show this message
 
 Examples:
-  feri setup         # First-time configuration
-  feri               # Same as 'feri start'
-  feri start         # Launch JARVIS
-  feri logs          # Watch live output
-  feri stop          # Shut down JARVIS
+  feri                  # Show interface menu, then launch
+  feri start            # Launch with default interface
+  feri start nice       # Launch with Tkinter interface
+  feri set-default og   # Remember: always use original JarvisUI
+  feri logs             # Watch live output
+  feri stop             # Shut down JARVIS
 
 Project root: $PROJECT_DIR
 EOF
