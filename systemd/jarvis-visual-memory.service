@@ -1,20 +1,28 @@
 [Unit]
 Description=JARVIS Visual Memory Daemon
-After=graphical.target
+After=graphical.target i3wm.service
+PartOf=graphical.target
 
 [Service]
 Type=simple
 User=%i
 Environment=DISPLAY=:0
+Environment=XAUTHORITY=/run/user/%U/.Xauthority
+Environment=XDG_RUNTIME_DIR=/run/user/%U
 WorkingDirectory=%h/Mark-LII
 ExecStart=/usr/bin/python3 -c "
+import os, sys
+sys.path.insert(0, os.path.expanduser('~/Mark-LII'))
 from core.visual_memory import VisualMemory
-vm = VisualMemory(interval=30)
+vm = VisualMemory(interval=30, ttl_hours=48)
 vm.start()
 import time
 while True: time.sleep(60)
 "
-Restart=always
+Restart=on-failure
+RestartSec=10
+MemoryMax=1G
+CPUQuota=50%
 
 [Install]
 WantedBy=graphical.target

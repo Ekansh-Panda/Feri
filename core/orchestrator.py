@@ -235,9 +235,9 @@ class WindowsAdapter:
 
 
 class Orchestrator:
-    def __init__(self, api_keys: Dict[str, str], llm, mission_engine: MissionEngine):
+    def __init__(self, api_keys: Dict[str, str], gemini_key: str, mission_engine: MissionEngine):
         self.api_keys = api_keys
-        self.llm = llm
+        self.gemini_key = gemini_key
         self.mission_engine = mission_engine
         self.adapter = self.get_os_adapter()
         self.running = False

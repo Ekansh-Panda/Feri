@@ -1,36 +1,116 @@
 #!/bin/bash
-# feri — launch JARVIS NEXUS
+# feri — The Master CLI for JARVIS NEXUS
+# Resolves its own location so the symlink works from any clone path.
 
 SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
-cd "$PROJECT_DIR" || exit 1
+export PYTHONPATH="$PROJECT_DIR:$PYTHONPATH"
 
-# Check if already running
-if pgrep -f "python3 main.py" > /dev/null 2>&1; then
-    if [ "$1" = "--toggle" ]; then
-        i3-msg '[title="J.A.R.V.I.S.*"] scratchpad show' 2>/dev/null
-    fi
-    echo "JARVIS is already running, sir."
-    exit 0
-fi
+CMD="${1:-start}"
+shift || true
 
-echo "Starting JARVIS NEXUS from $PROJECT_DIR..."
+case "$CMD" in
+    setup)
+        python3 "$PROJECT_DIR/setup.py" "$@"
+        ;;
+    start)
+        # Kill any existing instance
+        pkill -f "python3 main.py" 2>/dev/null
+        sleep 1
+        # Launch in background, redirect output to log
+        nohup python3 "$PROJECT_DIR/main.py" >> /tmp/jarvis.log 2>&1 &
+        NEW_PID=$!
+        sleep 3
+        if kill -0 $NEW_PID 2>/dev/null; then
+            echo "JARVIS online. PID: $NEW_PID"
+            echo "Logs: /tmp/jarvis.log"
+        else
+            echo "Failed to start JARVIS. Last 40 log lines:"
+            tail -n 40 /tmp/jarvis.log 2>/dev/null
+            exit 1
+        fi
+        ;;
+    stop)
+        pkill -f "python3 main.py" 2>/dev/null
+        echo "JARVIS stopped."
+        ;;
+    restart)
+        "$0" stop
+        sleep 1
+        "$0" start
+        ;;
+    status)
+        if pgrep -f "python3 main.py" > /dev/null; then
+            PID=$(pgrep -f "python3 main.py" | head -1)
+            echo "JARVIS is running. PID: $PID"
+            ps -p $PID -o pid,pcpu,pmem,etime,comm 2>/dev/null
+        else
+            echo "JARVIS is not running."
+            exit 1
+        fi
+        ;;
+    toggle)
+        i3-msg '[title="J.A.R.V.I.S.*"] scratchpad show' 2>/dev/null \
+            || python3 "$PROJECT_DIR/ui/toggle_hud.py" 2>/dev/null \
+            || echo "JARVIS not running. Use 'feri start' first."
+        ;;
+    logs)
+        tail -f /tmp/jarvis.log
+        ;;
+    clean)
+        echo "Clearing JARVIS caches..."
+        rm -rf /tmp/jarvis_vm_* 2>/dev/null
+        rm -f /tmp/jarvis_screenshot.png 2>/dev/null
+        find "$PROJECT_DIR/memory/chroma_db" -type f -mtime +2 -delete 2>/dev/null
+        echo "Cleaned."
+        ;;
+    install)
+        echo "Installing Arch dependencies..."
+        sudo bash "$PROJECT_DIR/install_stark_deps.sh"
+        sudo bash "$PROJECT_DIR/systemd/install_services.sh"
+        mkdir -p "$HOME/.local/bin"
+        ln -sf "$SCRIPT_DIR/feri" "$HOME/.local/bin/feri"
+        echo "feri installed to ~/.local/bin/feri"
+        ;;
+    uninstall)
+        rm -f "$HOME/.local/bin/feri"
+        systemctl --user disable jarvis-core jarvis-sentinel jarvis-visual-memory 2>/dev/null
+        echo "feri uninstalled."
+        ;;
+    help|--help|-h|"")
+        cat <<EOF
+feri — JARVIS NEXUS Master CLI
 
-# Run in background, capture output
-nohup python3 main.py > /tmp/jarvis.log 2>&1 &
-JARVIS_PID=$!
+Usage: feri <command>
 
-sleep 4
+Commands:
+  setup     Run first-run configuration wizard
+  start     Launch JARVIS in background
+  stop      Kill running JARVIS instance
+  restart   Stop and start again
+  status    Show process state and resource usage
+  toggle    Show/hide HUD window (scratchpad)
+  logs      Tail the live log file
+  clean     Clear screenshot cache and old vector data
+  install   Install Arch dependencies + symlink to ~/.local/bin
+  uninstall Remove symlink and disable systemd services
+  help      Show this message
 
-if kill -0 $JARVIS_PID 2>/dev/null; then
-    echo "JARVIS online. PID: $JARVIS_PID"
-    echo "Logs: /tmp/jarvis.log"
-else
-    echo "Failed to start JARVIS. Showing last 40 lines of /tmp/jarvis.log:"
-    echo "---"
-    tail -n 40 /tmp/jarvis.log 2>/dev/null || echo "(no log file)"
-    echo "---"
-    exit 1
-fi
+Examples:
+  feri setup         # First-time configuration
+  feri               # Same as 'feri start'
+  feri start         # Launch JARVIS
+  feri logs          # Watch live output
+  feri stop          # Shut down JARVIS
+
+Project root: $PROJECT_DIR
+EOF
+        ;;
+    *)
+        echo "Unknown command: $CMD"
+        echo "Run 'feri help' for usage."
+        exit 1
+        ;;
+esac

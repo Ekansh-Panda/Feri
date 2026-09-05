@@ -4,10 +4,18 @@ Visual Memory — periodic screen capture + OCR → ChromaDB.
 Uses `scrot` (or `grim` on Wayland) for screenshots, `tesseract` for OCR,
 and the VectorMemory backend for indexing. All tools are optional; missing
 binaries degrade gracefully.
+
+Bug 6 fix: Hash deduplication and rolling 48-hour TTL.
+- A new capture is only embedded if its OCR text hash differs from the
+  last stored capture. Staring at the same terminal for an hour no
+  longer creates 120 vector entries.
+- Entries older than `ttl_hours` are evicted on each new capture, so
+  ChromaDB stays bounded regardless of how long the daemon runs.
 """
 
 from __future__ import annotations
 
+import hashlib
 import shutil
 import subprocess
 import tempfile
@@ -24,8 +32,14 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 class VisualMemory:
     """Capture screenshots, OCR them, index in VectorMemory."""
 
-    def __init__(self, interval: int = 30, db_path: str = "memory/chroma_db") -> None:
+    def __init__(
+        self,
+        interval: int = 30,
+        db_path: str = "memory/chroma_db",
+        ttl_hours: int = 48,
+    ) -> None:
         self.interval = max(5, int(interval))
+        self.ttl_seconds = max(3600, int(ttl_hours) * 3600)
         self._vector = VectorMemory(db_path=db_path, collection="visual_memory")
         self._thread: Optional[threading.Thread] = None
         self._stop = threading.Event()
@@ -34,6 +48,10 @@ class VisualMemory:
         self._tmpdir = Path(tempfile.gettempdir()) / "jarvis_visual"
         self._tmpdir.mkdir(parents=True, exist_ok=True)
         self._capture_count = 0
+        self._dedup_skips = 0
+        self._evicted = 0
+        self._last_hash: Optional[str] = None
+        self._lock = threading.Lock()
 
     @staticmethod
     def _detect_capture_tool() -> Optional[str]:
@@ -43,7 +61,6 @@ class VisualMemory:
         return None
 
     def start(self) -> bool:
-        """Begin the capture loop in a daemon thread."""
         if self._thread and self._thread.is_alive():
             return False
         self._stop.clear()
@@ -54,7 +71,6 @@ class VisualMemory:
         return True
 
     def stop(self, join_timeout: float = 5.0) -> None:
-        """Signal the loop to stop and wait for it."""
         self._stop.set()
         if self._thread:
             self._thread.join(timeout=join_timeout)
@@ -96,6 +112,28 @@ class VisualMemory:
         except Exception:
             return ""
 
+    @staticmethod
+    def _hash_text(text: str) -> str:
+        return hashlib.sha256(text.encode("utf-8", errors="ignore")).hexdigest()[:16]
+
+    def _evict_expired(self) -> int:
+        cutoff = time.time() - self.ttl_seconds
+        try:
+            collection = self._vector.client.get_collection(self._vector.collection_name)
+            all_data = collection.get(include=["metadatas"])
+            ids_to_delete = []
+            for doc_id, meta in zip(all_data.get("ids", []),
+                                    all_data.get("metadatas", [])):
+                ts = (meta or {}).get("ts", 0)
+                if ts and ts < cutoff:
+                    ids_to_delete.append(doc_id)
+            if ids_to_delete:
+                collection.delete(ids=ids_to_delete)
+            self._evicted += len(ids_to_delete)
+            return len(ids_to_delete)
+        except Exception:
+            return 0
+
     def _capture_loop(self) -> None:
         while not self._stop.is_set():
             stamp = time.strftime("%Y%m%d_%H%M%S")
@@ -103,30 +141,42 @@ class VisualMemory:
             if self._capture_screenshot(img):
                 text = self._ocr(img)
                 if text:
-                    meta = {"ts": time.time(), "image": img.name, "iso": stamp}
-                    self._vector.add_document(text, metadata=meta)
-                    self._capture_count += 1
-                # Try to clean up immediately to avoid disk pressure
+                    text_hash = self._hash_text(text)
+                    with self._lock:
+                        is_duplicate = (text_hash == self._last_hash)
+                        self._last_hash = text_hash
+                    if is_duplicate:
+                        self._dedup_skips += 1
+                    else:
+                        meta = {"ts": time.time(), "image": img.name, "iso": stamp}
+                        self._vector.add_document(text, metadata=meta)
+                        self._capture_count += 1
+                # Cleanup screenshot
                 try:
                     img.unlink(missing_ok=True)
                 except Exception:
                     pass
+            # Evict expired entries periodically (every 10th capture)
+            if self._capture_count > 0 and self._capture_count % 10 == 0:
+                self._evict_expired()
             self._stop.wait(self.interval)
 
     def recall(self, query: str, n_results: int = 5) -> List[Dict[str, Any]]:
-        """Semantic search over captured screen OCR text."""
         return self._vector.query(query, n_results=n_results)
 
     def status(self) -> Dict[str, Any]:
-        """Return current status of the visual memory engine."""
-        return {
-            "running": self.is_running(),
-            "interval_s": self.interval,
-            "capture_tool": self._capture_tool,
-            "ocr_tool": self._ocr_tool,
-            "captures_indexed": self._capture_count,
-            "collection": self._vector.get_collection_stats(),
-        }
+        with self._lock:
+            return {
+                "running": self.is_running(),
+                "interval_s": self.interval,
+                "ttl_hours": self.ttl_seconds // 3600,
+                "capture_tool": self._capture_tool,
+                "ocr_tool": self._ocr_tool,
+                "captures_indexed": self._capture_count,
+                "dedup_skips": self._dedup_skips,
+                "evicted": self._evicted,
+                "collection": self._vector.get_collection_stats(),
+            }
 
 
 __all__ = ["VisualMemory"]

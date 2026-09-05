@@ -40,10 +40,11 @@ from .user_telemetry import UserTelemetry
 class StarkHUD(QMainWindow):
     """Main HUD window for JARVIS NEXUS."""
 
-    def __init__(self, orchestrator=None, mission_engine=None) -> None:
+    def __init__(self, orchestrator=None, mission_engine=None, bridge=None) -> None:
         super().__init__()
         self.orchestrator = orchestrator
         self.mission_engine = mission_engine
+        self.bridge = bridge
         self.setWindowTitle("JARVIS NEXUS — Stark OS")
         self._visible = True
         self._setup_window()
